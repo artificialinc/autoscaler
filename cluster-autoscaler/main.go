@@ -44,6 +44,7 @@ import (
 	"k8s.io/autoscaler/cluster-autoscaler/metrics"
 	ca_processors "k8s.io/autoscaler/cluster-autoscaler/processors"
 	"k8s.io/autoscaler/cluster-autoscaler/processors/nodegroupset"
+	"k8s.io/autoscaler/cluster-autoscaler/processors/status"
 	"k8s.io/autoscaler/cluster-autoscaler/simulator"
 	"k8s.io/autoscaler/cluster-autoscaler/utils/errors"
 	kube_util "k8s.io/autoscaler/cluster-autoscaler/utils/kubernetes"
@@ -182,6 +183,10 @@ var (
 	userAgent                          = flag.String("user-agent", "cluster-autoscaler", "User agent used for HTTP calls.")
 
 	emitPerNodeGroupMetrics = flag.Bool("emit-per-nodegroup-metrics", false, "If true, emit per node group metrics.")
+)
+
+var (
+	emitScaleDownStatusMetrics = flag.Bool("emit-scale-down-status-metrics", false, "If true, emit scale down metrics.")
 )
 
 func createAutoscalingOptions() config.AutoscalingOptions {
@@ -340,6 +345,11 @@ func buildAutoscaler() (core.Autoscaler, error) {
 	metrics.UpdateMaxNodesCount(autoscalingOptions.MaxNodesTotal)
 	metrics.UpdateCPULimitsCores(autoscalingOptions.MinCoresTotal, autoscalingOptions.MaxCoresTotal)
 	metrics.UpdateMemoryLimitsBytes(autoscalingOptions.MinMemoryTotal, autoscalingOptions.MaxMemoryTotal)
+
+	// ADJ: Use scaledown metrics processor
+	if *emitScaleDownStatusMetrics {
+		opts.Processors.ScaleDownStatusProcessor = status.NewMetricsScaleDownStatusProcessor()
+	}
 
 	// Create autoscaler.
 	return core.NewAutoscaler(opts)
