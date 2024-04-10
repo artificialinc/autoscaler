@@ -110,6 +110,7 @@ func (p *SchedulerBasedPredicateChecker) FitsAnyNodeMatching(clusterSnapshot clu
 		return "", fmt.Errorf("error running pre filter plugins for pod %s; %s", pod.Name, preFilterStatus.Message())
 	}
 
+	statuses := make([]*schedulerframework.Status, len(nodeInfosList))
 	for i := range nodeInfosList {
 		nodeInfo := nodeInfosList[(p.lastIndex+i)%len(nodeInfosList)]
 		if !nodeMatches(nodeInfo) {
@@ -130,7 +131,15 @@ func (p *SchedulerBasedPredicateChecker) FitsAnyNodeMatching(clusterSnapshot clu
 			p.lastIndex = (p.lastIndex + i + 1) % len(nodeInfosList)
 			return nodeInfo.Node().Name, nil
 		}
+		statuses[i] = filterStatus
 	}
+	statusStrings := make([]string, 0, len(statuses))
+	for i, status := range statuses {
+		if status != nil {
+			statusStrings = append(statusStrings, fmt.Sprintf("%s: %s", nodeInfosList[(p.lastIndex+i)%len(nodeInfosList)].Node().Name, status.Message()))
+		}
+	}
+	klog.Errorf("Cannot put pod %s on any node; statuses: %v", pod.Name, statusStrings)
 	return "", fmt.Errorf("cannot put pod %s on any node", pod.Name)
 }
 
